@@ -10,6 +10,6 @@ corpus = [d for d in listdir(in_path) if isdir(join(in_path, d))]
 for corpora in corpus:
     try:
         a = src.svd_algebra.SVDAlgebra(join(in_path, corpora))
-        a.save_model(corpora, out_path)
+        a.save_model(corpora, join(out_path, corpora))
     except Exception as e:
         print('problem', e)

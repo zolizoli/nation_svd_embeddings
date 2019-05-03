@@ -36,6 +36,7 @@ def distance_for_periods(wd1, wd2):
         period = str(p[0]) + '-' + str(p[1])
         print('The distance btw %s and %s in period %s is %s' % (wd1, wd2, period, dist))
 
+
 similar_for_periods('nation', 10)
 
 distance_for_periods('nation', 'americans')

@@ -181,3 +181,5 @@ every
 toward
 transcript
 nbsp;recent
+well
+still

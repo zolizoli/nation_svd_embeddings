@@ -9,6 +9,7 @@ with open('data/raw/Presidential_speeches.json', 'r') as f:
 
 with open('data/nation/todie.tsv', 'w') as outfile:
     h = 'Sentence ID\tSentence\tSpeech ID\tPresident\tTitle\n'
+    outfile.write(h)
     i = 0
     for element in json_file:
         president = element['president']
@@ -22,6 +23,7 @@ with open('data/nation/todie.tsv', 'w') as outfile:
         if len(speech2) > 1:
             speeches += ' ' + speech2
         speeches = speeches.replace('\t', ' ')
+        speeches = speeches.replace('&nbsp;', '')
         sent_text = nltk.sent_tokenize(speeches)
         for sentence in sent_text:
             tokenized_text = nltk.word_tokenize(sentence)

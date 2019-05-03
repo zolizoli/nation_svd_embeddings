@@ -25,7 +25,8 @@ with open('data/nation/todie.tsv', 'w') as outfile:
         sent_text = nltk.sent_tokenize(speeches)
         for sentence in sent_text:
             tokenized_text = nltk.word_tokenize(sentence)
-            if 'nation' in tokenized_text:
+            checked_text = [wd.lower() for wd in tokenized_text]
+            if 'nation' in checked_text:
                 o = str(i).zfill(4) + '\t' + ' '.join(tokenized_text) + '\t' + fid + '\t' + president + '\t' + title + '\n'
                 outfile.write(o)
                 i += 1

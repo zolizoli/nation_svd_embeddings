@@ -1,17 +1,18 @@
+import pyximport
+pyximport.install()
+
 import heapq
-import math
 import pickle
-from collections import Counter
 from os import listdir
 from os.path import isfile, join
 
-import icu
 import numpy as np
-from keras.preprocessing.sequence import skipgrams
-from keras.preprocessing import text
+from bounter import bounter
+from nltk.util import skipgrams
 from scipy.spatial.distance import cosine
-from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import svds
+
+from src.count_skipgrams import count_skipgrams
 
 
 class SVDAlgebra:
@@ -34,6 +35,7 @@ class SVDAlgebra:
     #####                     Initialize object                           #####
     ###########################################################################
     def read_corpus(self, corpus_dir):
+        #TODO: read corpus files line by line
         txts = [f for f in listdir(corpus_dir)
                 if isfile(join(corpus_dir, f))]
         for txt in txts:
@@ -43,79 +45,26 @@ class SVDAlgebra:
 
     def decompose(self, corpus):
 
-        ## uningram probabilities
-        unigram_freqs = {}
-        texts = []
-        for e in corpus:
-            unigram_freqs.update(Counter(e.split()))
-            texts.append(e)
-        unigram_relfreqs = {}
-        uni_total = sum(unigram_freqs.values())
-        for k,v in unigram_freqs.items():
-            unigram_relfreqs[k] = v / uni_total
+        skip_counts = bounter(size_mb=1024)
+        word_counts = bounter(size_mb=1024)
+        for l in corpus:
+            wds = l.split()
+            skips = list(skipgrams(wds, 2, 5))
+            skips = ['#'.join(t) for t in skips]
+            if len(wds) > 0 and len(skips) > 0:
+                skip_counts.update(skips)
+                word_counts.update(wds)
 
-        collator = icu.Collator.createInstance(
-            icu.Locale('en_EN.UTF-8'))  # TODO: language should be a parameter!
-        vocabulary = list(unigram_relfreqs.keys())  # sort vocabulary
-        vocabulary = sorted(vocabulary, key=collator.getSortKey)
-
-
-        ## initialize skipgram from keras
-        tokenizer = text.Tokenizer(filters='\t\n',
-                                   split=' ')
-        tokenizer.fit_on_texts(texts)
-
-        word2id = tokenizer.word_index
-        id2word = {v: k for k, v in word2id.items()}
-        vocab_size = len(word2id) + 1
-
-        wids = [[word2id[w] for w in text.text_to_word_sequence(doc, filters='\t\n')] for doc
-                in texts]
-        # don't use negative samples and don't shuffle words!!!
-        skip_grams = [skipgrams(wid,
-                                vocabulary_size=vocab_size,
-                                window_size=10,
-                                negative_samples=0.0,
-                                shuffle=False)
-                      for wid in wids]
-
-        # collect skipgram frequencies
-        skip_freqs = {}
-        for i in range(len(skip_grams)):
-            pairs, _ = skip_grams[i][0], skip_grams[i][1]
-            for p in pairs:
-                if (p[0], p[1]) not in skip_freqs.keys():
-                    skip_freqs[(p[0], p[1])] = 1
-                else:
-                    skip_freqs[(p[0], p[1])] += 1
-
-        skip_total = sum(skip_freqs.values())
-
-        # calculate pointwise mutual information for words
-        # store it in a scipy lil matrix
-        n = len(vocabulary)
-        data = []
-        row = []
-        col = []
-        alpha = 0.75 # context distribution smoothing
-        #TODO: we have a bottleneck here, this is way too slow
-        # either we iterate over the dict, so we have enough RAM
-        # or we use ProcessPoolExecutor and we don't have enough RAM
-        for k, v in skip_freqs.items():
-            a = id2word[k[0]]
-            b = id2word[k[1]]
-            pa = unigram_relfreqs[a]
-            pb = unigram_relfreqs[b] ** alpha
-            pab = v / skip_total
-            npmi = math.log2(pab / (pa * pb))
-            data.append(npmi)
-            row.append(vocabulary.index(a))
-            col.append(vocabulary.index(b))
-        M = coo_matrix((data, (row, col)), shape=(n, n))
+        vocabulary = list(word_counts)
+        shift = 1 # shift 1 does nothing since log(1) == 0.0
+        M = count_skipgrams(skip_counts, word_counts, vocabulary, shift)
+        #TODO: eigen something trick
         # singular value decomposition
-        U, _, V = svds(M, k=256) # U, S, V
+        U, _, V = svds(M, k=256)  # U, S, V
+        # add context to U
         word_vecs = U + V.T
-        word_vecs_norm = word_vecs / np.sqrt(np.sum(word_vecs*word_vecs,
+        # normalize rows
+        word_vecs_norm = word_vecs / np.sqrt(np.sum(word_vecs * word_vecs,
                                                     axis=0,
                                                     keepdims=True))
         return vocabulary, word_vecs_norm

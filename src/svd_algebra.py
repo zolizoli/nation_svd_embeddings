@@ -55,7 +55,7 @@ class SVDAlgebra:
                 skip_counts.update(skips)
                 word_counts.update(wds)
 
-        vocabulary = list(word_counts)
+        vocabulary = sorted(list(word_counts))
         shift = 1 # shift 1 does nothing since log(1) == 0.0
         M = count_skipgrams(skip_counts, word_counts, vocabulary, shift)
         #TODO: eigen something trick

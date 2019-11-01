@@ -15,7 +15,7 @@ jsonschema==2.6.0
 Markdown==3.1
 mock==2.0.0
 murmurhash==1.0.2
-nltk==3.4.1
+nltk==3.4.5
 numpy==1.16.3
 pbr==5.2.0
 plac==0.9.6
